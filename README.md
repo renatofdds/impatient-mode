@@ -9,9 +9,9 @@ Installation through MELPA
 --------------------------
 
 The easiest way to get up and running with _impatient-mode_ is to
-install it through [MELPA](http://melpa.milkbox.net/). If you're not
+install it through [MELPA](https://melpa.org/). If you're not
 already using MELPA,
-[it's quite easy to setup.](http://melpa.milkbox.net/#installing)
+[it's quite easy to setup.](https://melpa.org/#/getting-started)
 
 Installation from Source
 ------------------------
