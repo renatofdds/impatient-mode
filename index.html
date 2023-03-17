@@ -1,114 +1,116 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
-<script type="text/javascript" src="/imp/static/jquery.js"></script>
+<meta charset="utf-8" />
 <style type="text/css">
-  html {
-    overflow: auto;
-  }
-  html, body, div, iframe {
-    margin: 0px;
-    padding: 0px;
-    height: 100%;
-    border: none;
-  }
-  iframe {
-    display: block;
-    width: 100%;
-    border: none;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
+	html {
+		overflow: auto;
+	}
+	html,
+	body,
+	div,
+	iframe {
+		margin: 0;
+		border: 0;
+		padding: 0;
+		display: block;
+		width: 100vw;
+		height: 100vh;
+		overflow: hidden;
+	}
 </style>
 
-<iframe id="content"
-        name="content"
-        src="/imp/static/loading.html"
-        frameborder="0"
-        marginheight="0"
-        marginwidth="0"
-        width="100%"
-        height="100%"
-        scrolling="auto"
-        content="text/html;charset=UTF-8">
+<iframe
+	id="content"
+	name="content"
+	src="/imp/static/loading.html"
+	frameborder="0"
+	marginheight="0"
+	marginwidth="0"
+	width="100%"
+	height="100%"
+	scrolling="auto"
+	content="text/html;charset=UTF-8">
 </iframe>
 
-<script type="text/javascript">
-var buffer = window.location.pathname.split('/')[3];
-var max_period = 60000;
-var min_period = 1000;
-var next_period = min_period;
-var alpha = 1.2;
-var current_id = '-1';
-$('head').append($('<title/>').text(decodeURI(buffer)));
-
-var nextTimeout = function() {
-  var next = next_period;
-  next_period = Math.min(max_period, next_period * alpha);
-  return next;
+<script type="module">
+import jQuery from 'https://cdn.skypack.dev/pin/jquery@v3.7.1-7rUWvYxyB0VFidIbWTia/mode=imports,min/optimized/jquery.js';
+self.jQuery = jQuery.noConflict();
+const frame = window.parent.document.getElementById('content');
+const imp = {
+	window: frame.contentWindow,
+	document: frame.contentWindow.document
 };
 
-var resetTimeout = function() {
-  next_period = min_period;
-};
+($ => {
+	const buffer = window.location.pathname.split('/')[3];
+	const max_period = 60000;
+	const min_period = 1000;
+	const alpha = 1.2;
 
-var frameToDocument = function(iframe) {
-  return (iframe.contentDocument) ? iframe.contentDocument : iframe.Document;
-};
+	$('head').append($('<title/>').text(decodeURI(buffer)));
 
-var printIframe = function(data) {
-  var iframeJQ = $('#content');
-  var doc = frameToDocument(iframeJQ[0]);
-  var iwindow = iframeJQ[0].contentWindow;
-  var offX = iwindow.pageXOffset, offY = iwindow.pageYOffset;
-  if (offY && offY >= $(doc.body).height() - $(iwindow).height()) {
-    offY = null; // follow the end of the buffer
-  }
-  doc.open();
-  doc.write(data);
-  doc.close();
-  iwindow.scrollTo(offX, offY != null ? offY : $(doc.body).height());
-};
+	let current_id = '-1';
+	let next_period = min_period;
 
-var setIframe = function(count, newText) {
-  if(!count) {
-    // error parsing client result
-    printIframe('0', 'error parsing the response from emacs');
-  } else {
-    current_id = count;
-    printIframe(newText);
-  }
-};
+	const nextTimeout = () => {
+		const next = next_period;
+		next_period = Math.min(max_period, next_period * alpha);
+		return next;
+	};
 
-var refresh = function() {
-  var url = "/imp/buffer/" + buffer;
+	const renderFrame = data => {
+		try {
+			let offX = imp.window.scrollX,
+					offY = imp.window.scrollY;
 
-  var gotData = function(data, status, xhr) {
-    resetTimeout();
-    setIframe(xhr.getResponseHeader("X-Imp-Count"), data);
-    refresh();
-  };
+			if (
+				offY &&
+				offY >= $(imp.document.body).height() - $(imp.window).height()
+			) {
+				offY = null; // follow the end of the buffer
+			}
 
-  var errorRetry = function() {
-    setTimeout(refresh, nextTimeout());
-  };
+			imp.window.console.clear();
+			imp.document.open();
+			imp.document.write(data);
+			imp.document.close();
 
-  $.get(url + '?id=' + current_id, gotData).error(errorRetry);
-};
+			imp.window.scrollTo(
+				offX,
+				offY != null ? offY : $(imp.document.body).height()
+			);
+		} catch (error) {
+			console.warn('impatient-mode', 'render failure', error);
+		}
+	};
 
-$(document).ready(function() {
-  var iframeJQ = $('#content');
-  iframeJQ.load(function() {
-    // now we need to tweak the stylesheet links so that firefox will
-    // refresh them properly
-    $('link', frameToDocument(iframeJQ[0])).each(function(index, el) {
-      var href = $(el).attr('href');
-      // Only refresh impatient-mode hosted content
-      if(href && !/^[a-zA-z]+:\/\//.exec(href)) {
-        $(el).attr('href', $(el).attr('href') + '?' + new Date().getTime());
-      }
-    });
-  });
+	const refresh = () => {
+		$.get(`/imp/buffer/${buffer}?id=${current_id}`)
+		 .done((data, status, xhr) => {
+			 next_period = min_period;
+			 const count = xhr.getResponseHeader('X-Imp-Count');
+			 if (!count) {
+				 console.warn('impatient-mode', 'error parsing the response from emacs');
+			 } else {
+				 current_id = count;
+				 renderFrame(data);
+			 }
+			 refresh();
+		 })
+		 .fail(() => setTimeout(refresh, nextTimeout()));
+	};
 
-  refresh();
-});
+	$(frame).on('load', () => {
+		// now we need to tweak the stylesheet links so that firefox will
+		// refresh them properly
+		$('link', imp.document).each((index, el) => {
+			const href = $(el).attr('href');
+			// Only refresh impatient-mode hosted content
+			if (href && !/^[a-zA-z]+:\/\//.exec(href)) {
+				$(el).attr('href', $(el).attr('href') + '?' + new Date().getTime());
+			}
+		});
+	});
+
+	refresh();
+})(self.jQuery);
 </script>
