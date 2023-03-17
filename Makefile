@@ -10,7 +10,7 @@ EMACS   = emacs
 LDFLAGS = -L ../simple-httpd -L ../htmlize
 VERSION = 1.1
 
-DIST = README.md loading.html jquery.js index.html
+DIST = README.md loading.html index.html
 
 all: compile
 
